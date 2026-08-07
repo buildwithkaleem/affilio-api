@@ -1,5 +1,5 @@
-import dbConnection from "../src/config/db";
-import app from "../src/server";
+import dbConnection from "../src/config/db.js";
+import app from "../src/server.js";
 
 dbConnection()
 
