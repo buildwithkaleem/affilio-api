@@ -35,7 +35,7 @@ app.get('/',(req,res)=>{
 
 let port = process.env.PORT || 5000
 
-dbConnection()
+await dbConnection()
 
 app.listen(port,()=>{
 console.log(`Server is Running on http://localhost:${port}`)
