@@ -1,0 +1,340 @@
+import { paymentMethodModel } from
+  "../models/paymentMethod.model.js";
+import { withdrawalModel } from "../models/withdrawal.model.js"
+import { userModel } from "../models/user.model.js";
+import { responseHandler } from "../utils/responseHandler.js";
+import { withdrawalRequestTemplate, adminWithdrawalRequestReseveTemplate } from
+  "../utils/htmlTemlate.js"
+import { sendEmail } from "../services/sendEmail.service.js"
+import argon2 from 'argon2';
+import { notificationModel } from "../models/notification.model.js";
+import { productModel } from "../models/product.model.js";
+
+export const findMe = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return responseHandler(
+        res,
+        401,
+        {},
+        "Unauthorized",
+        false
+      );
+    }
+
+    const user = await userModel.findOne({ _id: userId, isActive: true })
+      .select("-password -refreshToken")
+      .lean();
+
+    if (!user) {
+      return responseHandler(
+        res,
+        404,
+        {},
+        "User not found or inactive",
+        false
+      );
+    }
+
+    return responseHandler(res, 200, { user }, "User fetched successfully")
+
+  } catch (error) {
+    return responseHandler(res, 500, error.message, "Internal server Error findMe", false);
+  }
+};
+
+export const userUpdate = async (req, res) => {
+  try {
+    const { userName, oldPassword, newPassword, email } = req.body;
+
+    const userId = req.user?.id;
+
+    const user = await userModel.findById(userId);
+
+    if (!user) {
+      return responseHandler(res, 404, {}, "User Not Found", false);
+    }
+
+    const isMatch = await argon2.verify(user.password, oldPassword);
+
+    if (!isMatch) {
+      return responseHandler(res, 401, null, "your OldPassword is inCorect", false)
+    };
+
+    // const hashedPassword = await argon2.hash(newPassword);
+
+    if (userName !== undefined) user.userName = userName;
+
+    if (newPassword !== undefined) user.password = newPassword;
+
+    if (email !== undefined) user.email = email;
+
+    const save = await user.save();
+
+    return responseHandler(
+      res,
+      200,
+      {
+        user: {
+          userName: save.userName,
+          email: save.email
+        }
+      },
+      "User updated successfully",
+    );
+
+  } catch (error) {
+    return responseHandler(
+      res,
+      500,
+      {},
+      `internal server error user edit: ${error.message}`,
+      false
+    );
+  }
+};
+
+// payment method
+export const pymentMethodAddEdit = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const { methodType, accountNumber, accountHolderName } = req.body;
+
+    const user = await userModel.findById(userId);
+    if (!user) {
+      return responseHandler(res, 404, {}, "user not found", false);
+    }
+    if (!methodType || !accountNumber || !accountHolderName) {
+      return responseHandler(res, 404, {}, "Filed the paymet details ", false);
+    }
+
+    const paymentMethod = await paymentMethodModel.findOneAndUpdate(
+      { user: user._id },
+      {
+        $set: { methodType, accountNumber, accountHolderName, user: userId },
+      },
+      {
+        returnDocument: "after",
+        upsert: true,
+      }
+    );
+
+    return responseHandler(res, 201, {}, "PaymentMethod Successfully Add ");
+
+  } catch (error) {
+    return responseHandler(res, 404, {}, `internal server Error ${error.message}`, false);
+  }
+};
+
+export const getPaymentMethod = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+
+    const paymentMethod = await paymentMethodModel.findOne({ user: userId }).lean();
+
+    return responseHandler(
+      res,
+      200,
+      { paymentMethod } || null, // 👈 direct object ya null
+      "OK"
+    );
+  } catch (e) {
+    return responseHandler(res, 500, {}, e.message, false);
+  }
+};
+
+
+// Withdrawals
+export const withdrawalReq = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    let { amount } = req.body;
+
+    amount = Number(amount);
+
+    // ✅ Validate amount
+    if (!amount || amount <= 0) {
+      return responseHandler(res, 400, {}, "Invalid amount", false);
+    }
+
+    if (amount < 100) {
+      return responseHandler(res, 400, {}, "Minimum withdrawal is 100", false);
+    }
+
+    const user = await userModel.findById(userId);
+
+    if (!user) {
+      return responseHandler(res, 404, {}, "User not found", false);
+    }
+
+    const payment = await paymentMethodModel.findOne({ user: userId })
+
+
+    if (!payment) {
+      return responseHandler(res, 404, {}, "payment method not found", false);
+    }
+
+    // ✅ Check sufficient balance
+    if (user.balance < amount) {
+      return responseHandler(res, 400, {}, "Insufficient balance", false);
+    }
+
+
+    const expireAt = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000); // delete in 15 days
+
+    // ✅ Create withdrawal request
+    const withdrawal = await withdrawalModel.create({
+      user: user._id,
+      amount,
+      // expireAt
+    });
+
+    // ✅ Deduct balance
+    user.balance -= amount;
+    await user.save();
+
+    const html = withdrawalRequestTemplate(user.userName, amount);
+
+    await sendEmail(user.email, "Withdrawal Request Submitted", html
+    );
+
+    const AdminHtml = adminWithdrawalRequestReseveTemplate(
+      user.userName,
+      user.email,
+      amount,
+      payment.methodType,
+      payment.accountHolderName,
+      payment.accountNumber,
+    );
+
+    const adminMails = "admin@egrif.online" || "fakherbaho@gmail.com"
+
+    await sendEmail(adminMails,
+      "New Withdrawal Request 🚨",
+      AdminHtml
+    );
+
+    // ✅ USER NOTIFICATION
+    await notificationModel.create({
+      user: user._id,
+      title: "Withdrawal Requested",
+      message: `Your withdrawal request of Rs.${amount} has been submitted`,
+      amount,
+      status: "pending",
+      expireAt
+    });
+
+    // 🔥 ADMIN NOTIFICATION
+    const admins = await userModel.find({ role: "admin" });
+
+    const adminNotifications = admins.map(admin => ({
+      user: admin._id,
+      title: "New Withdrawal Request 🚨",
+      message: `${user.userName} requested Rs.${amount}`,
+      amount,
+      status: "pending",
+      expireAt
+    }));
+
+    await notificationModel.insertMany(adminNotifications);
+
+    return responseHandler(
+      res,
+      200,
+      {
+        withdrawal,
+        balance: user.balance,
+      },
+      "Withdrawal request submitted successfully"
+    );
+
+  } catch (error) {
+    return responseHandler(
+      res,
+      500,
+      {},
+      `Internal server error ${error.message}`,
+      false
+    );
+  }
+};
+
+export const getUserWithdrawals = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+
+    const withdrawals = await withdrawalModel
+      .find({ user: userId })
+      .sort({ createdAt: -1 });
+
+    if (!withdrawals.length) {
+      return responseHandler(
+        res,
+        404,
+        [],
+        "No withdrawal history found",
+        false
+      );
+    }
+
+    return responseHandler(
+      res,
+      200,
+      { withdrawals },
+      "Withdrawal history fetched successfully"
+    );
+
+  } catch (error) {
+    return responseHandler(
+      res,
+      500,
+      {},
+      `Internal server error ${error.message}`,
+      false
+    );
+  }
+};
+
+
+// Get All Products
+
+export const getAllProducts = async (req, res) => {
+  try {
+
+const userId = req.user?.id;
+
+const user = await userModel.findById(userId);
+
+if(!user) return responseHandler(res,404,{},"User Not Found",false);
+
+    const products = await productModel
+      .find()
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const productsWithAffiliateUrl = products.map((product) => ({
+      ...product,
+      affiliateUrl: `${product.productUrl}?ref=${encodeURIComponent(user.userName)}`,
+    }));
+
+    return responseHandler(
+      res,
+      200,
+      { products: productsWithAffiliateUrl },
+      "Products fetched successfully",
+    );
+  } catch (error) {
+    console.error("Get All Products Error:", error.message);
+
+    return responseHandler(
+      res,
+      500,
+      {},
+      "Internal server error",
+      false
+    );
+  }
+};
+
