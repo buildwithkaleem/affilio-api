@@ -26,7 +26,7 @@ export const orderController = async (req, res) => {
     }
 
     // Duplicate Order Check
-    const existingOrder = await Affiliate.findOne({
+    const existingOrder = await orderModel.findOne({
       "order.id": order.id,
     });
 
@@ -51,7 +51,6 @@ export const orderController = async (req, res) => {
       message: "Affiliate order created successfully.",
       data: orderRecord,
     },
-      console.log("Afflite reseced")
     );
 
   } catch (error) {
