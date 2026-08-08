@@ -339,10 +339,17 @@ export const addAffilliateProducts = async (req, res) => {
     const price = salePrice ?? regularPrice;
 
     let commission = price * persent / 100;
-    const affiliateCommission = Math.floor(commission)
+    const affiliateCommission = Math.floor(commission);
+
+    const saveProductUrl = productUrl.replace(
+      "/wp-json/pure/v1",
+      ""
+    );
+    
+    console.log(saveProductUrl)
 
     const product = await productModel.create({
-      productUrl,
+      productUrl: saveProductUrl,
       title,
       slug,
       regularPrice,
