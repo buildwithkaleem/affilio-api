@@ -7,6 +7,7 @@ import { sendEmail } from "../services/sendEmail.service.js"
 import { notificationModel } from "../models/notification.model.js";
 import axios from "axios";
 import { productModel } from "../models/product.model.js";
+import { orderModel } from "../models/order.model.js";
 
 export const getAllUser = async (req, res) => {
   try {
@@ -15,7 +16,9 @@ export const getAllUser = async (req, res) => {
       return responseHandler(res, 403, {}, "Access denied", false);
     }
 
-    const users = await userModel.find().select("-password -refreshToken");
+    const users = await userModel.find()
+    .select("-password -refreshToken")
+    .lean();
 
     return responseHandler(
       res,
@@ -324,37 +327,46 @@ export const addAffilliateProducts = async (req, res) => {
       );
     }
 
+    const slug = new URL(productUrl)
+    .pathname
+    .split("/")
+    .filter(Boolean)
+    .pop();
+
+
     // Fetch product from Pure API
-    const { data } = await axios.get(productUrl, {
+    const { data } = await axios
+    .get(`${process.env.PURE_API_URL}/${slug}`,
+       {
       timeout: 10000,
     });
 
-    const title = data.product.title;
-    // const productId = data.product.id;
-    const slug = data.product.slug;
+    const productTitle = data.product.title;
+    const productId = data.product.id;
+    const productSlug = data.product.slug;
     const salePrice = data.product.price.sale;
     const regularPrice = data.product.price.regular;
-    const image = data.product.image;
+    const productImage = data.product.image;
 
     const price = salePrice ?? regularPrice;
 
     let commission = price * persent / 100;
     const affiliateCommission = Math.floor(commission);
 
-    const saveProductUrl = productUrl.replace(
-      "/wp-json/pure/v1",
-      ""
-    );
-    
-    console.log(saveProductUrl)
+    const isExist = await productModel.findOne({ productId });
 
+    if (isExist) {
+      return responseHandler(res, 409, { productId },"Product Already Exist")
+    }
+    
     const product = await productModel.create({
-      productUrl: saveProductUrl,
-      title,
-      slug,
+      productUrl,
+      productId,
+      productTitle,
+      productSlug,
       regularPrice,
       salePrice,
-      image,
+      productImage,
       persent,
       affiliateCommission
     });
@@ -372,15 +384,15 @@ export const addAffilliateProducts = async (req, res) => {
   } catch (error) {
     console.error("Add Affiliate Product Error:", error.message);
 
-    if (error.code === "ECONNABORTED") {
-      return responseHandler(
-        res,
-        504,
-        {},
-        "Product API request timed out",
-        false
-      );
-    }
+    // if (error.code === "ECONNABORTED") {
+    //   return responseHandler(
+    //     res,
+    //     504,
+    //     {},
+    //     "Product API request timed out",
+    //     false
+    //   );
+    // }
 
     if (error.response) {
       return responseHandler(
@@ -401,3 +413,156 @@ export const addAffilliateProducts = async (req, res) => {
     );
   }
 };
+
+
+// Order
+export const getAllOrders = async (req,res) => {
+  try {
+    // 🔐 Admin check
+    if (req.user?.role !== "admin") {
+      return responseHandler(res, 403, {}, "Access denied", false);
+    }
+
+    const orders = await orderModel.find()
+    .lean();
+
+    return responseHandler(
+      res,
+      200,
+      {orders},
+      "All orders fetched successfully"
+    );
+  } catch (error) {
+    return responseHandler(
+      res,
+      500,
+      {},
+      `Internal server error get All orders: ${error.message}`,
+      false
+    );
+  }
+
+}
+
+export const releaseAffiliateCommission = async (req, res) => {
+  try {
+    const { id: orderId } = req.params;
+
+    // 🔐 Admin check
+    if (req.user?.role !== "admin") {
+      return responseHandler(
+        res,
+        403,
+        {},
+        "Access denied",
+        false
+      );
+    }
+
+    const order = await orderModel.findById(orderId);
+
+    if (!order) {
+      return responseHandler(
+        res,
+        404,
+        null,
+        "Order Not Found",
+        false
+      );
+    }
+
+    const product = await productModel.findOne({
+      productId: order.products[0].id
+    });
+
+    if (!product) {
+      return responseHandler(
+        res,
+        404,
+        null,
+        "Product Not Found",
+        false
+      );
+    }
+
+    const user = await userModel.findOne({
+      userName: order.affiliate_ref
+    });
+
+    if (!user) {
+      return responseHandler(
+        res,
+        404,
+        null,
+        "User Not Found",
+        false
+      );
+    }
+
+    // Commission ko existing balance mein ADD karo
+    user.balance += product.affiliateCommission;
+
+    await user.save();
+
+    return responseHandler(
+      res,
+      200,
+      { balance: user.balance },
+      "Affiliate Commission Released Successfully",
+      true
+    );
+
+  } catch (error) {
+    console.error(
+      "Release Affiliate Commission Error:",
+      error.message
+    );
+
+    return responseHandler(
+      res,
+      500,
+      null,
+      "Internal Server Error Affiliate Commission Release",
+      false
+    );
+  }
+};
+
+// export const releaseAffiliateCommission = async (req,res) => {
+//   try {
+//     const orderId = req.params;
+
+//     // 🔐 Admin check
+//     if (req.user?.role !== "admin") {
+//       return responseHandler(res, 403, {}, "Access denied", false);
+//     }
+
+//     const order = await orderModel.findById(orderId);
+
+//     if (!order) {
+//       return responseHandler(res,404,null,"Order Not Found",false);
+//     }
+
+//     const product = await productModel.findOne({ productId: order.products.id});
+
+//     if (!product) {
+//       return responseHandler(res, 404, null, "Product Not Found", false);
+//     }
+
+//     const user = await userModel.findOne({ userName: order.affiliate_ref})
+
+//     if (!user) {
+//       return responseHandler(res, 404, null, "User Not Found", false);
+//     }
+
+//     user.balance = product.affiliateCommission;
+//     const balance = user.save();
+
+//     return responseHandler(res, 200, balance.balance,"Affiliate Commission Release SuccessFully" )
+
+//   } catch (error) {
+//     return responseHandler(res, 500, error.message, "Internal Server Error Affiliate Commission Release",false)
+//   }
+// }
+
+

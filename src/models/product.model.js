@@ -5,15 +5,17 @@ const productSchema = new mongoose.Schema(
   {
     productUrl: String,
 
-    title: String,
+    productId: String,
 
-    slug: String,
+    productTitle: String,
+
+    productSlug: String,
 
     regularPrice: String,
 
     salePrice: String,
 
-    image: String,
+    productImage: String,
 
     persent: Number,
 

@@ -1,22 +1,33 @@
 import { Router } from "express";
-import * as authController from "../controllers/admin.controller.js";
+import * as adminController from "../controllers/admin.controller.js";
 import { auth } from "../middleware/authMiddleware.js";
 
 const adminRouter = Router();
 
-adminRouter.get('/getAllUsers',auth,authController.getAllUser);
-adminRouter.delete('/deleteUser/:id', auth, authController.deleteUser);
-adminRouter.post('/updateUser/:id', auth, authController.updateUser);
+adminRouter.get('/getAllUsers', auth, adminController.getAllUser);
+adminRouter.delete('/deleteUser/:id', auth, adminController.deleteUser);
+adminRouter.post('/updateUser/:id', auth, adminController.updateUser);
 
-adminRouter.get('/getAllWithdrawals', 
-  auth, 
-  authController.getAllWithdrawals);
-adminRouter.post('/withdrawalApproval/:id', 
-  auth, 
-  authController.withdrawalApproval);
+adminRouter.get('/getAllWithdrawals',
+  auth,
+  adminController.getAllWithdrawals);
+adminRouter.post('/withdrawalApproval/:id',
+  auth,
+  adminController.withdrawalApproval);
 
-adminRouter.post('/addAffilliateProducts', 
-  auth, 
-  authController.addAffilliateProducts);
+adminRouter.post('/addAffilliateProducts',
+  auth,
+  adminController.addAffilliateProducts);
+
+// Order
+adminRouter.get('/getAllOrders',
+  auth,
+  adminController.getAllOrders);
+
+adminRouter.post('/releaseAffiliateCommission/:id',
+  auth,
+  adminController.releaseAffiliateCommission);
+
+
 
 export default adminRouter
