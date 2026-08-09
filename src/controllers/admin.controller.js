@@ -17,8 +17,8 @@ export const getAllUser = async (req, res) => {
     }
 
     const users = await userModel.find()
-    .select("-password -refreshToken")
-    .lean();
+      .select("-password -refreshToken")
+      .lean();
 
     return responseHandler(
       res,
@@ -214,8 +214,8 @@ export const withdrawalApproval = async (req, res) => {
         html);
 
       // 🔴 USER NOTIFICATION (REJECTED)
-      notification(user._id, 
-        "Withdrawal Rejected ❌", 
+      notification(user._id,
+        "Withdrawal Rejected ❌",
         `Your withdrawal of Rs.${withdrawal.amount} was rejected`,
         withdrawal.amount,
         "rejected",
@@ -328,18 +328,18 @@ export const addAffilliateProducts = async (req, res) => {
     }
 
     const slug = new URL(productUrl)
-    .pathname
-    .split("/")
-    .filter(Boolean)
-    .pop();
+      .pathname
+      .split("/")
+      .filter(Boolean)
+      .pop();
 
 
     // Fetch product from Pure API
     const { data } = await axios
-    .get(`${process.env.PURE_API_URL}/${slug}`,
-       {
-      timeout: 10000,
-    });
+      .get(`${process.env.PURE_API_URL}/${slug}`,
+        {
+          timeout: 10000,
+        });
 
     const productTitle = data.product.title;
     const productId = data.product.id;
@@ -356,9 +356,9 @@ export const addAffilliateProducts = async (req, res) => {
     const isExist = await productModel.findOne({ productId });
 
     if (isExist) {
-      return responseHandler(res, 409, { productId },"Product Already Exist")
+      return responseHandler(res, 409, { productId }, "Product Already Exist")
     }
-    
+
     const product = await productModel.create({
       productUrl,
       productId,
@@ -416,7 +416,7 @@ export const addAffilliateProducts = async (req, res) => {
 
 
 // Order
-export const getAllOrders = async (req,res) => {
+export const getAllOrders = async (req, res) => {
   try {
     // 🔐 Admin check
     if (req.user?.role !== "admin") {
@@ -424,12 +424,13 @@ export const getAllOrders = async (req,res) => {
     }
 
     const orders = await orderModel.find()
-    .lean();
+      .lean()
+      .sort({ createdAt: -1 });
 
     return responseHandler(
       res,
       200,
-      {orders},
+      { orders },
       "All orders fetched successfully"
     );
   } catch (error) {
@@ -527,6 +528,27 @@ export const releaseAffiliateCommission = async (req, res) => {
     );
   }
 };
+
+
+export const deleteOrder = async (req,res) => {
+  try {
+
+    const productId = req.params?.id;
+
+    // 🔐 Admin check
+    if (req.user?.role !== "admin") {
+      return responseHandler(res, 403, {}, "Access denied", false);
+    }
+
+    const order = await orderModel.findByIdAndDelete(productId);
+
+    return responseHandler(res,200,null,"Order Delete SuccessFuly");
+    
+  } catch (error) {
+    return responseHandler(res, 500, null, "Internal Server Error Order Delete" + error.message,false);
+  }
+}
+
 
 // export const releaseAffiliateCommission = async (req,res) => {
 //   try {

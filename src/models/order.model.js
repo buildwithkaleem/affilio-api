@@ -67,6 +67,9 @@ const orderSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    expireAt: {
+      type: Date,
+    },
   },
   {
     timestamps: true,

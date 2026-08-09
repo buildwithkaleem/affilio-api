@@ -28,6 +28,10 @@ adminRouter.post('/releaseAffiliateCommission/:id',
   auth,
   adminController.releaseAffiliateCommission);
 
+adminRouter.delete('/deleteOrder/:id',
+  auth,
+  adminController.deleteOrder);
+
 
 
 export default adminRouter
