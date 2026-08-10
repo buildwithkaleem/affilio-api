@@ -9,6 +9,7 @@ import { sendEmail } from "../services/sendEmail.service.js"
 import argon2 from 'argon2';
 import { notificationModel } from "../models/notification.model.js";
 import { productModel } from "../models/product.model.js";
+import { orderModel } from "../models/order.model.js";
 
 export const findMe = async (req, res) => {
   try {
@@ -303,11 +304,11 @@ export const getUserWithdrawals = async (req, res) => {
 export const getAllProducts = async (req, res) => {
   try {
 
-const userId = req.user?.id;
+    const userId = req.user?.id;
 
-const user = await userModel.findById(userId);
+    const user = await userModel.findById(userId);
 
-if(!user) return responseHandler(res,404,{},"User Not Found",false);
+    if (!user) return responseHandler(res, 404, {}, "User Not Found", false);
 
     const products = await productModel
       .find()
@@ -337,4 +338,30 @@ if(!user) return responseHandler(res,404,{},"User Not Found",false);
     );
   }
 };
+
+// order
+export const getOrders = async (req, res) => {
+  try {
+    const userId = req.user?.id
+
+    const user = await userModel.findById(userId);
+
+    if (!user) {
+      return responseHandler(res, 404, null, "User Not Found", false);
+    }
+
+    const orders = await orderModel.find(
+      {
+        affiliate_ref: user.userName
+      }
+    )
+      .select("-affiliate_ref -customer")
+      .lean();
+
+    return responseHandler(res, 200, { orders }, "Get Orders SuccessFully")
+
+  } catch (error) {
+    return responseHandler(res, 500, null, "Internal Server Error Get Orders")
+  }
+}
 

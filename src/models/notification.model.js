@@ -9,6 +9,7 @@ const notificationSchema = new mongoose.Schema({
   message: String,
   amount: Number,
   status: String,
+  orderId: String,
   isRead: {
     type: Boolean,
     default: false

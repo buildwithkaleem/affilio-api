@@ -17,4 +17,9 @@ userRouter.get("/getAllProducts",
   auth, 
   userController.getAllProducts);
 
+  // Orders
+userRouter.get("/getOrders", 
+  auth, 
+  userController.getOrders);
+
 export default userRouter;

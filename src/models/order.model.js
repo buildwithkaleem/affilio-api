@@ -67,9 +67,7 @@ const orderSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
-    expireAt: {
-      type: Date,
-    },
+    affiliateCommission: Number,
   },
   {
     timestamps: true,

@@ -28,6 +28,8 @@ export const markAsRead = async (req, res) => {
     const { id } = req.params;
     const userId = req.user?.id;
 
+    const expireAt = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000); // delete in 15 days
+
     const notification = await notificationModel.findOneAndUpdate(
       {
         _id: id,
@@ -35,6 +37,7 @@ export const markAsRead = async (req, res) => {
       },
       {
         isRead: true,
+        expireAt
       },
       {
         returnDocument: "after"

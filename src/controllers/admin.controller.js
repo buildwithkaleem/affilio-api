@@ -150,8 +150,6 @@ export const withdrawalApproval = async (req, res) => {
       return responseHandler(res, 403, {}, "Access denied", false);
     }
 
-    const expireAt = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000); // delete in 15 days
-
     // notification function
     const notification = async (user,
       title,
@@ -166,7 +164,6 @@ export const withdrawalApproval = async (req, res) => {
         message,
         amount,
         status,
-        expireAt
       });
     };
 
@@ -196,12 +193,14 @@ export const withdrawalApproval = async (req, res) => {
 
     const user = await userModel.findById(withdrawal.user);
 
+    const expireAt = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000); // delete in 15 days
 
     // rejected
     if (status === "rejected") {
       user.balance += withdrawal.amount;
       const rejectApproval = await user.save();
       withdrawal.status = status;
+      withdrawal.expireAt = expireAt
       await withdrawal.save();
 
       const html = withdrawalRejectedTemplate(
@@ -218,8 +217,7 @@ export const withdrawalApproval = async (req, res) => {
         "Withdrawal Rejected ❌",
         `Your withdrawal of Rs.${withdrawal.amount} was rejected`,
         withdrawal.amount,
-        "rejected",
-        expireAt
+        "rejected"
       );
       // await notificationModel.create({
       //   user: user._id,
@@ -256,7 +254,6 @@ export const withdrawalApproval = async (req, res) => {
       `Your withdrawal of Rs.${withdrawal.amount} has been approved`,
       withdrawal.amount,
       "approved",
-      expireAt
     );
     // await notificationModel.create({
     //   user: user._id,
@@ -337,9 +334,8 @@ export const addAffilliateProducts = async (req, res) => {
     // Fetch product from Pure API
     const { data } = await axios
       .get(`${process.env.PURE_API_URL}/${slug}`,
-        {
-          timeout: 10000,
-        });
+        { timeout: 10000, }
+      );
 
     const productTitle = data.product.title;
     const productId = data.product.id;
@@ -472,19 +468,27 @@ export const releaseAffiliateCommission = async (req, res) => {
       );
     }
 
-    const product = await productModel.findOne({
-      productId: order.products[0].id
-    });
+    // Calculate total affiliate commission
+    let affiliateCommission = 0;
 
-    if (!product) {
-      return responseHandler(
-        res,
-        404,
-        null,
-        "Product Not Found",
-        false
-      );
+    for (const item of order.products) {
+      const product = await productModel.findOne({
+        productId: item.id,
+      });
+
+      if (!product) {
+        return res.status(404).json({
+          success: false,
+          message: `Product not found: ${item.id}`,
+        });
+      }
+
+      const commission = product.affiliateCommission || 0;
+      const qty = item.qty || 1;
+
+      affiliateCommission += commission * qty;
     }
+
 
     const user = await userModel.findOne({
       userName: order.affiliate_ref
@@ -500,10 +504,20 @@ export const releaseAffiliateCommission = async (req, res) => {
       );
     }
 
-    // Commission ko existing balance mein ADD karo
-    user.balance += product.affiliateCommission;
+    // Add affiliateCommission in order
+    order.affiliateCommission = affiliateCommission;
+    await order.save();
 
+    // Commission ko existing balance mein ADD karo
+    user.balance += affiliateCommission;
     await user.save();
+
+    const notice = await notificationModel.create({
+      user: user._id,
+      title: "Payment Released",
+      message: `Your affiliate commission of ${affiliateCommission} has been released.`,
+      orderId: order.order.id,
+    });
 
     return responseHandler(
       res,
@@ -530,7 +544,7 @@ export const releaseAffiliateCommission = async (req, res) => {
 };
 
 
-export const deleteOrder = async (req,res) => {
+export const deleteOrder = async (req, res) => {
   try {
 
     const productId = req.params?.id;
@@ -542,10 +556,10 @@ export const deleteOrder = async (req,res) => {
 
     const order = await orderModel.findByIdAndDelete(productId);
 
-    return responseHandler(res,200,null,"Order Delete SuccessFuly");
-    
+    return responseHandler(res, 200, null, "Order Delete SuccessFuly");
+
   } catch (error) {
-    return responseHandler(res, 500, null, "Internal Server Error Order Delete" + error.message,false);
+    return responseHandler(res, 500, null, "Internal Server Error Order Delete" + error.message, false);
   }
 }
 
