@@ -356,7 +356,8 @@ export const getOrders = async (req, res) => {
       }
     )
       .select("-affiliate_ref -customer")
-      .lean();
+      .lean()
+      .sort({ createdAt: -1 });
 
     return responseHandler(res, 200, { orders }, "Get Orders SuccessFully")
 

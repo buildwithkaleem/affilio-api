@@ -334,7 +334,7 @@ export const addAffilliateProducts = async (req, res) => {
     // Fetch product from Pure API
     const { data } = await axios
       .get(`${process.env.PURE_API_URL}/${slug}`,
-        { timeout: 10000, }
+        { timeout: 20000, }
       );
 
     const productTitle = data.product.title;
@@ -469,25 +469,25 @@ export const releaseAffiliateCommission = async (req, res) => {
     }
 
     // Calculate total affiliate commission
-    let affiliateCommission = 0;
+    // let affiliateCommission = 0;
 
-    for (const item of order.products) {
-      const product = await productModel.findOne({
-        productId: item.id,
-      });
+    // for (const item of order.products) {
+    //   const product = await productModel.findOne({
+    //     productId: item.id,
+    //   });
 
-      if (!product) {
-        return res.status(404).json({
-          success: false,
-          message: `Product not found: ${item.id}`,
-        });
-      }
+    //   if (!product) {
+    //     return res.status(404).json({
+    //       success: false,
+    //       message: `Product not found: ${item.id}`,
+    //     });
+    //   }
 
-      const commission = product.affiliateCommission || 0;
-      const qty = item.qty || 1;
+    //   const commission = product.affiliateCommission || 0;
+    //   const qty = item.qty || 1;
 
-      affiliateCommission += commission * qty;
-    }
+    //   affiliateCommission += commission * qty;
+    // }
 
 
     const user = await userModel.findOne({
@@ -505,8 +505,10 @@ export const releaseAffiliateCommission = async (req, res) => {
     }
 
     // Add affiliateCommission in order
-    order.affiliateCommission = affiliateCommission;
-    await order.save();
+    // order.affiliateCommission = affiliateCommission;
+    // await order.save();
+
+    let { affiliateCommission } = order;
 
     // Commission ko existing balance mein ADD karo
     user.balance += affiliateCommission;
