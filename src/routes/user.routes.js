@@ -22,4 +22,16 @@ userRouter.get("/getOrders",
   auth, 
   userController.getOrders);
 
+userRouter.get(
+  "/getOrder/:id",
+  auth,
+  userController.getOrderById
+);
+
+
+  // Dashboard
+userRouter.get("/dashboard", 
+  auth, 
+  userController.getDashboard);
+
 export default userRouter;

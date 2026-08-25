@@ -49,7 +49,7 @@ export const auth = (req, res, next) => {
 
     req.user = decoded;
 
-    console.log(decoded)
+    // console.log(decoded)
 
     next();
   } catch (error) {

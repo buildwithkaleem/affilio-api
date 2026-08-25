@@ -1,26 +1,79 @@
-import mongoose from 'mongoose';
+// import mongoose from 'mongoose';
 
-const withdrawalSchema = new mongoose.Schema({
-  user: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-    required: true
-  },
-  amount: {
-    type: Number,
-    default: 0
-  },
-  status: {
-    type: String,
-    enum: ["pending", "approved", "rejected"],
-    default: "pending"
-  },
-  expireAt: {
-    type: Date,
+// const withdrawalSchema = new mongoose.Schema({
+//   user: {
+//     type: mongoose.Schema.Types.ObjectId,
+//     ref: "User",
+//     required: true
+//   },
+//   amount: {
+//     type: Number,
+//     default: 0
+//   },
+//   status: {
+//     type: String,
+//     enum: ["pending", "approved", "rejected"],
+//     default: "pending"
+//   },
+//   expireAt: {
+//     type: Date,
+//   }
+
+// }, { timestamps: true });
+
+// withdrawalSchema.index({ expireAt: 1 }, { expireAfterSeconds: 0 });
+
+// export const withdrawalModel = mongoose.model("Withdrawal", withdrawalSchema);
+
+
+
+
+
+import mongoose from "mongoose";
+
+const withdrawalSchema =
+  new mongoose.Schema(
+    {
+      user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
+      },
+
+      amount: {
+        type: Number,
+        required: true,
+        min: 100,
+      },
+
+      status: {
+        type: String,
+        enum: [
+          "pending",
+          "approved",
+          "rejected",
+        ],
+        default: "pending",
+      },
+
+      expireAt: {
+        type: Date,
+      },
+    },
+    {
+      timestamps: true,
+    }
+  );
+
+withdrawalSchema.index(
+  { expireAt: 1 },
+  {
+    expireAfterSeconds: 0,
   }
+);
 
-}, { timestamps: true });
-
-withdrawalSchema.index({ expireAt: 1 }, { expireAfterSeconds: 0 });
-
-export const withdrawalModel = mongoose.model("Withdrawal", withdrawalSchema);
+export const withdrawalModel =
+  mongoose.model(
+    "Withdrawal",
+    withdrawalSchema
+  );

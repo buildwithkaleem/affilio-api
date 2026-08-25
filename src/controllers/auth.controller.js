@@ -136,6 +136,11 @@ export const login = async (req, res) => {
 export const generateTokens = async (req, res) => {
   try {
     const Token = req.cookies?.refreshToken;
+
+    // console.log("========== REFRESH ==========");
+    // console.log("Refresh cookie exists:", !!Token);
+    // console.log("Refresh token:", Token);
+
     // console.log(req.cookies)
     if (!Token) {
       return res.status(404).json({
@@ -144,6 +149,8 @@ export const generateTokens = async (req, res) => {
     }
 
     const decoded = verifyRefreshToken(Token);
+
+    // console.log("Decoded:", decoded);
 
     // console.log(decoded)
 
@@ -160,6 +167,8 @@ export const generateTokens = async (req, res) => {
       Token
     );
 
+    // console.log("Refresh token match:", isMatch);
+
     if (!isMatch) {
       return res.status(401).json({
         message: "Invalid Refresh Token",
@@ -168,62 +177,47 @@ export const generateTokens = async (req, res) => {
 
     const accessToken = generateAccessToken(user._id, user.role);
 
-    const NewRefreshToken = generateRefreshToken(user._id, user.role);
+    // console.log("OLD REFRESH TOKEN:", Token);
 
-    const newRefreshTokenHash = await argon2.hash(NewRefreshToken);
+    // const NewRefreshToken = generateRefreshToken(user._id, user.role);
 
-    user.refreshToken = newRefreshTokenHash
-    await user.save()
 
-    const options = {
-      httpOnly: true,
-      secure: isProduction, // dev me false & pro me true
-      sameSite: isProduction ? "none" : "lax",  // best for dev $
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 day
-    };
 
-    return responseHandler(res, 200, [{
-      accessToken: accessToken, user: {
+    // const newRefreshTokenHash = await argon2.hash(NewRefreshToken);
+
+    // console.log("NEW REFRESH TOKEN:", NewRefreshToken);
+
+    // user.refreshToken = newRefreshTokenHash
+    // await user.save()
+
+    // console.log("REFRESH TOKEN HASH UPDATED");
+
+    // const options = {
+    //   httpOnly: true,
+    //   secure: isProduction, // dev me false & pro me true
+    //   sameSite: isProduction ? "none" : "lax",  // best for dev $
+    //   maxAge: 7 * 24 * 60 * 60 * 1000 // 7 day
+    // };
+
+    // console.log("SETTING NEW COOKIE");
+
+    return responseHandler(res, 200, {
+      accessToken, user: {
         id: user._id,
         userName: user.userName,
         email: user.email
 
       }
-    }], "Login successful", true, [{ name: "refreshToken", value: NewRefreshToken, options }]);
+    }, 
+    "Token refreshed successfully", true,
+    //  [{ name: "refreshToken", value: NewRefreshToken, options }]
+  );
 
 
   } catch (error) {
     return responseHandler(res, 500, error.message, "internal server error refresh Token", false);
   }
 };
-
-
-// export const findMe = async (req, res) => {
-//   try {
-//     const userId = req.user?.id;
-
-//     if (!userId) {
-//       return responseHandler(
-//         res,
-//         401,
-//         {},
-//         "Unauthorized",
-//         false
-//       );
-//     }
-
-//     const user = await userModel.findOne({ _id: userId, isActive: true })
-//       .select("-password -refreshToken");
-//     if (!user) {
-//       return responseHandler(res, 404, {}, "User Not Found", false);
-//     }
-
-//     return responseHandler(res, 200, [{ user }], "User fetched successfully")
-
-//   } catch (error) {
-//     return responseHandler(res, 500, error.message, "Internal server Error findMe", false);
-//   }
-// };
 
 
 export const logout = async (req, res) => {

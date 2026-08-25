@@ -97,6 +97,95 @@ export const userUpdate = async (req, res) => {
   }
 };
 
+
+//  Dashboard
+export const getDashboard = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    // User
+    const user = await userModel.findById(userId).select(
+      "userName balance"
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Affiliate orders
+    const orders = await orderModel
+      .find({
+        affiliate_ref: user.userName,
+      })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Total orders
+    const totalOrders = orders.length;
+
+    // Total commission
+    const totalCommission = orders.reduce(
+      (total, order) => total + (order.affiliateCommission || 0),
+      0
+    );
+
+    // Withdrawals
+    const withdrawals = await withdrawalModel
+      .find({
+        user: userId,
+        status: "approved",
+      })
+      .lean();
+
+    const totalWithdrawals = withdrawals.reduce(
+      (total, withdrawal) => total + (withdrawal.amount || 0),
+      0
+    );
+
+    // Recent 5 orders
+    const recentOrders = orders.slice(0, 5);
+
+    return res.status(200).json({
+      success: true,
+      message: "Dashboard data fetched successfully",
+      data: {
+        user: {
+          id: user._id,
+          userName: user.userName,
+        },
+
+        balance: user.balance || 0,
+
+        totalCommission,
+
+        totalOrders,
+
+        totalWithdrawals,
+
+        recentOrders,
+      },
+    });
+  } catch (error) {
+    console.error("Dashboard Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+
 // payment method
 export const pymentMethodAddEdit = async (req, res) => {
   try {
@@ -122,7 +211,7 @@ export const pymentMethodAddEdit = async (req, res) => {
       }
     );
 
-    return responseHandler(res, 201, {}, "PaymentMethod Successfully Add ");
+    return responseHandler(res, 201, paymentMethod, "PaymentMethod Successfully Add ");
 
   } catch (error) {
     return responseHandler(res, 404, {}, `internal server Error ${error.message}`, false);
@@ -148,105 +237,229 @@ export const getPaymentMethod = async (req, res) => {
 
 
 // Withdrawals
-export const withdrawalReq = async (req, res) => {
+
+export const withdrawalReq = async (
+  req,
+  res
+) => {
   try {
     const userId = req.user?.id;
+
     let { amount } = req.body;
 
     amount = Number(amount);
 
-    // ✅ Validate amount
+    // =========================
+    // VALIDATE AMOUNT
+    // =========================
+
     if (!amount || amount <= 0) {
-      return responseHandler(res, 400, {}, "Invalid amount", false);
+      return responseHandler(
+        res,
+        400,
+        {},
+        "Invalid amount",
+        false
+      );
     }
 
     if (amount < 100) {
-      return responseHandler(res, 400, {}, "Minimum withdrawal is 100", false);
+      return responseHandler(
+        res,
+        400,
+        {},
+        "Minimum withdrawal is 100",
+        false
+      );
     }
 
-    const user = await userModel.findById(userId);
+    // =========================
+    // FIND USER
+    // =========================
+
+    const user =
+      await userModel.findById(userId);
 
     if (!user) {
-      return responseHandler(res, 404, {}, "User not found", false);
+      return responseHandler(
+        res,
+        404,
+        {},
+        "User not found",
+        false
+      );
     }
 
-    const payment = await paymentMethodModel.findOne({ user: userId })
+    // =========================
+    // PAYMENT METHOD
+    // =========================
 
+    const payment =
+      await paymentMethodModel.findOne({
+        user: userId,
+      });
 
     if (!payment) {
-      return responseHandler(res, 404, {}, "payment method not found", false);
+      return responseHandler(
+        res,
+        404,
+        {},
+        "Payment method not found",
+        false
+      );
     }
 
-    // ✅ Check sufficient balance
+    // =========================
+    // BALANCE CHECK
+    // =========================
+
     if (user.balance < amount) {
-      return responseHandler(res, 400, {}, "Insufficient balance", false);
+      return responseHandler(
+        res,
+        400,
+        {},
+        "Insufficient balance",
+        false
+      );
     }
 
+    // =========================
+    // EXPIRY
+    // =========================
 
-    const expireAt = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000); // delete in 15 days
+    const expireAt = new Date(
+      Date.now() +
+      15 *
+      24 *
+      60 *
+      60 *
+      1000
+    );
 
-    // ✅ Create withdrawal request
-    const withdrawal = await withdrawalModel.create({
-      user: user._id,
-      amount,
-      // expireAt
-    });
+    // =========================
+    // CREATE WITHDRAWAL
+    // =========================
 
-    // ✅ Deduct balance
+    const withdrawal =
+      await withdrawalModel.create({
+        user: user._id,
+        amount,
+        status: "pending",
+        expireAt,
+      });
+
+    // =========================
+    // DEDUCT BALANCE
+    // =========================
+
     user.balance -= amount;
+
     await user.save();
 
-    const html = withdrawalRequestTemplate(user.userName, amount);
+    // =========================
+    // USER NOTIFICATION
+    // =========================
 
-    await sendEmail(user.email, "Withdrawal Request Submitted", html
-    );
+    const notification =
+      await notificationModel.create({
+        user: user._id,
 
-    const AdminHtml = adminWithdrawalRequestReseveTemplate(
-      user.userName,
+        title: "Withdrawal Requested",
+
+        message: `Your withdrawal request of Rs. ${amount.toLocaleString()} has been submitted successfully.`,
+
+        amount,
+
+        status: "pending",
+
+        expireAt,
+      });
+
+    // =========================
+    // ADMIN NOTIFICATIONS
+    // =========================
+
+    const admins =
+      await userModel.find({
+        role: "admin",
+      });
+
+    const adminNotifications =
+      admins.map((admin) => ({
+        user: admin._id,
+
+        title:
+          "New Withdrawal Request 🚨",
+
+        message: `${user.userName} requested Rs. ${amount.toLocaleString()}`,
+
+        amount,
+
+        status: "pending",
+
+        expireAt,
+      }));
+
+    if (adminNotifications.length > 0) {
+      await notificationModel.insertMany(
+        adminNotifications
+      );
+    }
+
+    // =========================
+    // USER EMAIL
+    // =========================
+
+    const html =
+      withdrawalRequestTemplate(
+        user.userName,
+        amount
+      );
+
+    await sendEmail(
       user.email,
-      amount,
-      payment.methodType,
-      payment.accountHolderName,
-      payment.accountNumber,
+      "Withdrawal Request Submitted",
+      html
     );
 
-    const adminMails = "admin@egrif.online" || "fakherbaho@gmail.com"
+    // =========================
+    // ADMIN EMAIL
+    // =========================
 
-    await sendEmail(adminMails,
+    const AdminHtml =
+      adminWithdrawalRequestReseveTemplate(
+        user.userName,
+        user.email,
+        amount,
+        payment.methodType,
+        payment.accountHolderName,
+        payment.accountNumber
+      );
+
+    const adminMails =
+      "admin@egrif.online";
+
+    await sendEmail(
+      adminMails,
       "New Withdrawal Request 🚨",
       AdminHtml
     );
 
-    // ✅ USER NOTIFICATION
-    await notificationModel.create({
-      user: user._id,
-      title: "Withdrawal Requested",
-      message: `Your withdrawal request of Rs.${amount} has been submitted`,
-      amount,
-      status: "pending",
-      expireAt
-    });
-
-    // 🔥 ADMIN NOTIFICATION
-    const admins = await userModel.find({ role: "admin" });
-
-    const adminNotifications = admins.map(admin => ({
-      user: admin._id,
-      title: "New Withdrawal Request 🚨",
-      message: `${user.userName} requested Rs.${amount}`,
-      amount,
-      status: "pending",
-      expireAt
-    }));
-
-    await notificationModel.insertMany(adminNotifications);
+    // =========================
+    // RESPONSE
+    // =========================
 
     return responseHandler(
       res,
       200,
       {
         withdrawal,
+
+        // Updated actual balance
         balance: user.balance,
+
+        // Newly created notification
+        notification,
       },
       "Withdrawal request submitted successfully"
     );
@@ -261,6 +474,123 @@ export const withdrawalReq = async (req, res) => {
     );
   }
 };
+
+// export const withdrawalReq = async (req, res) => {
+//   try {
+//     const userId = req.user?.id;
+//     let { amount } = req.body;
+
+//     amount = Number(amount);
+
+//     // ✅ Validate amount
+//     if (!amount || amount <= 0) {
+//       return responseHandler(res, 400, {}, "Invalid amount", false);
+//     }
+
+//     if (amount < 100) {
+//       return responseHandler(res, 400, {}, "Minimum withdrawal is 100", false);
+//     }
+
+//     const user = await userModel.findById(userId);
+
+//     if (!user) {
+//       return responseHandler(res, 404, {}, "User not found", false);
+//     }
+
+//     const payment = await paymentMethodModel.findOne({ user: userId })
+
+
+//     if (!payment) {
+//       return responseHandler(res, 404, {}, "payment method not found", false);
+//     }
+
+//     // ✅ Check sufficient balance
+//     if (user.balance < amount) {
+//       return responseHandler(res, 400, {}, "Insufficient balance", false);
+//     }
+
+
+//     const expireAt = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000); // delete in 15 days
+
+//     // ✅ Create withdrawal request
+//     const withdrawal = await withdrawalModel.create({
+//       user: user._id,
+//       amount,
+//       // expireAt
+//     });
+
+//     // ✅ Deduct balance
+//     user.balance -= amount;
+//     await user.save();
+
+//     // ✅ USER NOTIFICATION
+//     await notificationModel.create({
+//       user: user._id,
+//       title: "Withdrawal Requested",
+//       message: `Your withdrawal request of Rs.${amount} has been submitted`,
+//       amount,
+//       status: "pending",
+//       expireAt
+//     });
+
+//     // 🔥 ADMIN NOTIFICATION
+//     const admins = await userModel.find({ role: "admin" });
+
+//     const adminNotifications = admins.map(admin => ({
+//       user: admin._id,
+//       title: "New Withdrawal Request 🚨",
+//       message: `${user.userName} requested Rs.${amount}`,
+//       amount,
+//       status: "pending",
+//       expireAt
+//     }));
+
+//     await notificationModel.insertMany(adminNotifications);
+
+
+//     const html = withdrawalRequestTemplate(user.userName, amount);
+
+//     await sendEmail(user.email, "Withdrawal Request Submitted", html
+//     );
+
+//     const AdminHtml = adminWithdrawalRequestReseveTemplate(
+//       user.userName,
+//       user.email,
+//       amount,
+//       payment.methodType,
+//       payment.accountHolderName,
+//       payment.accountNumber,
+//     );
+
+//     const adminMails = "admin@egrif.online" || "fakherbaho@gmail.com"
+
+//     await sendEmail(adminMails,
+//       "New Withdrawal Request 🚨",
+//       AdminHtml
+//     );
+
+
+
+//     return responseHandler(
+//       res,
+//       200,
+//       {
+//         withdrawal,
+//         balance: user.balance,
+//       },
+//       "Withdrawal request submitted successfully"
+//     );
+
+//   } catch (error) {
+//     return responseHandler(
+//       res,
+//       500,
+//       {},
+//       `Internal server error ${error.message}`,
+//       false
+//     );
+//   }
+// };
 
 export const getUserWithdrawals = async (req, res) => {
   try {
@@ -365,4 +695,70 @@ export const getOrders = async (req, res) => {
     return responseHandler(res, 500, null, "Internal Server Error Get Orders")
   }
 }
+
+
+export const getOrderById = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const orderId = req.params.id;
+
+    if (!userId) {
+      return responseHandler(
+        res,
+        401,
+        null,
+        "Unauthorized",
+        false
+      );
+    }
+
+    const user = await userModel.findById(userId);
+
+    if (!user) {
+      return responseHandler(
+        res,
+        404,
+        null,
+        "User Not Found",
+        false
+      );
+    }
+
+    const order = await orderModel
+      .findOne({
+        _id: orderId,
+        affiliate_ref: user.userName,
+      })
+      .select("-affiliate_ref -customer")
+      .lean();
+
+    if (!order) {
+      return responseHandler(
+        res,
+        404,
+        null,
+        "Order Not Found",
+        false
+      );
+    }
+
+    return responseHandler(
+      res,
+      200,
+      { order },
+      "Order fetched successfully"
+    );
+
+  } catch (error) {
+    console.error("Get Order Detail Error:", error);
+
+    return responseHandler(
+      res,
+      500,
+      null,
+      "Internal Server Error Get Order",
+      false
+    );
+  }
+};
 

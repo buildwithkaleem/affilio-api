@@ -28,21 +28,34 @@ export const markAsRead = async (req, res) => {
     const { id } = req.params;
     const userId = req.user?.id;
 
-    const expireAt = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000); // delete in 15 days
-
-    const notification = await notificationModel.findOneAndUpdate(
-      {
-        _id: id,
-        user: userId,
-      },
-      {
-        isRead: true,
-        expireAt
-      },
-      {
-        returnDocument: "after"
-      }
+    const expireAt = new Date(
+      Date.now() + 15 * 24 * 60 * 60 * 1000
     );
+
+    const notification =
+      await notificationModel.findOneAndUpdate(
+        {
+          _id: id,
+          user: userId,
+        },
+        {
+          isRead: true,
+          expireAt,
+        },
+        {
+          new: true,
+        }
+      );
+
+    if (!notification) {
+      return responseHandler(
+        res,
+        404,
+        {},
+        "Notification not found",
+        false
+      );
+    }
 
     return responseHandler(
       res,
@@ -50,10 +63,50 @@ export const markAsRead = async (req, res) => {
       { notification },
       "Notification marked as read"
     );
+
   } catch (error) {
-    return responseHandler(res, 500, {}, error.message, false);
+    return responseHandler(
+      res,
+      500,
+      {},
+      error.message,
+      false
+    );
   }
 };
+
+
+// export const markAsRead = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const userId = req.user?.id;
+
+//     const expireAt = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000); // delete in 15 days
+
+//     const notification = await notificationModel.findOneAndUpdate(
+//       {
+//         _id: id,
+//         user: userId,
+//       },
+//       {
+//         isRead: true,
+//         expireAt
+//       },
+//       {
+//         returnDocument: "after"
+//       }
+//     );
+
+//     return responseHandler(
+//       res,
+//       200,
+//       { notification },
+//       "Notification marked as read"
+//     );
+//   } catch (error) {
+//     return responseHandler(res, 500, {}, error.message, false);
+//   }
+// };
 
 
 // 🔥 UNREAD COUNT (FOR BELL 🔔)

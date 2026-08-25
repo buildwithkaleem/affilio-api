@@ -12,7 +12,23 @@ import orderRouter from "./routes/order.routes.js";
 
 const app = express();
 
-app.use(cors());
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://your-frontend-domain.vercel.app",
+];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(cookieParser());
 
@@ -23,15 +39,10 @@ app.use('/admin/api/v1', adminRouter);
 app.use("/api/v1/notification", notificationRouter);
 app.use("/api/v1/order", orderRouter);
 
-
-
-
 app.get('/',(req,res)=>{
   res.send("hello Affilio")
 });
 
-// console.log("ACCESS:", process.env.ACCESS_TOKEN_SECRET);
-// console.log("REFRESH:", process.env.REFRESH_TOKEN_SECRET);
 
 let port = process.env.PORT || 5000
 

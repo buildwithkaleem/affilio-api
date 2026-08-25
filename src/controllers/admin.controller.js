@@ -54,7 +54,15 @@ export const deleteUser = async (req, res) => {
 
     await userModel.findByIdAndDelete(id);
 
-    return responseHandler(res, 200, {}, "User deleted successfully");
+    return responseHandler(
+      res,
+      200,
+      {
+        userId: id,
+      },
+      "User deleted successfully"
+    );
+    
   } catch (error) {
     return responseHandler(res, 500, {}, error.message, false);
   }
@@ -213,7 +221,7 @@ export const withdrawalApproval = async (req, res) => {
         html);
 
       // 🔴 USER NOTIFICATION (REJECTED)
-      notification(user._id,
+     await notification(user._id,
         "Withdrawal Rejected ❌",
         `Your withdrawal of Rs.${withdrawal.amount} was rejected`,
         withdrawal.amount,
@@ -249,7 +257,7 @@ export const withdrawalApproval = async (req, res) => {
       html);
 
     // 🟢 USER NOTIFICATION (APPROVED)
-    notification(user._id,
+  await  notification(user._id,
       "Withdrawal Approved 🎉",
       `Your withdrawal of Rs.${withdrawal.amount} has been approved`,
       withdrawal.amount,
@@ -524,7 +532,11 @@ export const releaseAffiliateCommission = async (req, res) => {
     return responseHandler(
       res,
       200,
-      { balance: user.balance },
+      {
+        balance: user.balance,
+        order,
+        notification: notice
+      },
       "Affiliate Commission Released Successfully",
       true
     );
@@ -558,7 +570,14 @@ export const deleteOrder = async (req, res) => {
 
     const order = await orderModel.findByIdAndDelete(productId);
 
-    return responseHandler(res, 200, null, "Order Delete SuccessFuly");
+    return responseHandler(
+      res,
+      200,
+      {
+        orderId: productId,
+      },
+      "Order deleted successfully"
+    );
 
   } catch (error) {
     return responseHandler(res, 500, null, "Internal Server Error Order Delete" + error.message, false);
