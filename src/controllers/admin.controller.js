@@ -419,6 +419,53 @@ export const addAffilliateProducts = async (req, res) => {
 };
 
 
+// ==============================
+// GET ALL AFFILIATE PRODUCTS
+// ==============================
+
+export const getAllAffiliateProducts = async (req, res) => {
+  try {
+    // 🔐 Admin check
+    if (req.user?.role !== "admin") {
+      return responseHandler(
+        res,
+        403,
+        {},
+        "Access denied",
+        false
+      );
+    }
+
+    const products = await productModel
+      .find()
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return responseHandler(
+      res,
+      200,
+      { products },
+      "All affiliate products fetched successfully",
+      true
+    );
+
+  } catch (error) {
+    console.error(
+      "Get All Affiliate Products Error:",
+      error.message
+    );
+
+    return responseHandler(
+      res,
+      500,
+      {},
+      `Internal server error: ${error.message}`,
+      false
+    );
+  }
+};
+
+
 // Order
 export const getAllOrders = async (req, res) => {
   try {
@@ -453,7 +500,10 @@ export const releaseAffiliateCommission = async (req, res) => {
   try {
     const { id: orderId } = req.params;
 
-    // 🔐 Admin check
+    // ==============================
+    // ADMIN CHECK
+    // ==============================
+
     if (req.user?.role !== "admin") {
       return responseHandler(
         res,
@@ -463,6 +513,10 @@ export const releaseAffiliateCommission = async (req, res) => {
         false
       );
     }
+
+    // ==============================
+    // FIND ORDER
+    // ==============================
 
     const order = await orderModel.findById(orderId);
 
@@ -476,30 +530,28 @@ export const releaseAffiliateCommission = async (req, res) => {
       );
     }
 
-    // Calculate total affiliate commission
-    // let affiliateCommission = 0;
+    // ==============================
+    // PREVENT DOUBLE RELEASE
+    // ==============================
 
-    // for (const item of order.products) {
-    //   const product = await productModel.findOne({
-    //     productId: item.id,
-    //   });
+    if (order.commissionReleased) {
+      return responseHandler(
+        res,
+        400,
+        {
+          order,
+        },
+        "Affiliate commission has already been released",
+        false
+      );
+    }
 
-    //   if (!product) {
-    //     return res.status(404).json({
-    //       success: false,
-    //       message: `Product not found: ${item.id}`,
-    //     });
-    //   }
-
-    //   const commission = product.affiliateCommission || 0;
-    //   const qty = item.qty || 1;
-
-    //   affiliateCommission += commission * qty;
-    // }
-
+    // ==============================
+    // FIND AFFILIATE USER
+    // ==============================
 
     const user = await userModel.findOne({
-      userName: order.affiliate_ref
+      userName: order.affiliate_ref,
     });
 
     if (!user) {
@@ -512,22 +564,59 @@ export const releaseAffiliateCommission = async (req, res) => {
       );
     }
 
-    // Add affiliateCommission in order
-    // order.affiliateCommission = affiliateCommission;
-    // await order.save();
+    // ==============================
+    // COMMISSION
+    // ==============================
 
-    let { affiliateCommission } = order;
+    const affiliateCommission =
+      Number(order.affiliateCommission || 0);
 
-    // Commission ko existing balance mein ADD karo
-    user.balance += affiliateCommission;
+    if (affiliateCommission <= 0) {
+      return responseHandler(
+        res,
+        400,
+        null,
+        "No affiliate commission available for this order",
+        false
+      );
+    }
+
+    // ==============================
+    // ADD COMMISSION TO USER BALANCE
+    // ==============================
+
+    user.balance =
+      Number(user.balance || 0) +
+      affiliateCommission;
+
     await user.save();
 
-    const notice = await notificationModel.create({
-      user: user._id,
-      title: "Payment Released",
-      message: `Your affiliate commission of ${affiliateCommission} has been released.`,
-      orderId: order.order.id,
-    });
+    // ==============================
+    // MARK COMMISSION AS RELEASED
+    // ==============================
+
+    order.commissionReleased = true;
+
+    await order.save();
+
+    // ==============================
+    // CREATE NOTIFICATION
+    // ==============================
+
+    const notice =
+      await notificationModel.create({
+        user: user._id,
+
+        title: "Payment Released",
+
+        message: `Your affiliate commission of Rs.${affiliateCommission} has been released.`,
+
+        orderId: order.order.id,
+      });
+
+    // ==============================
+    // RESPONSE
+    // ==============================
 
     return responseHandler(
       res,
@@ -535,7 +624,7 @@ export const releaseAffiliateCommission = async (req, res) => {
       {
         balance: user.balance,
         order,
-        notification: notice
+        notification: notice,
       },
       "Affiliate Commission Released Successfully",
       true
@@ -556,6 +645,114 @@ export const releaseAffiliateCommission = async (req, res) => {
     );
   }
 };
+
+// export const releaseAffiliateCommission = async (req, res) => {
+//   try {
+//     const { id: orderId } = req.params;
+
+//     // 🔐 Admin check
+//     if (req.user?.role !== "admin") {
+//       return responseHandler(
+//         res,
+//         403,
+//         {},
+//         "Access denied",
+//         false
+//       );
+//     }
+
+//     const order = await orderModel.findById(orderId);
+
+//     if (!order) {
+//       return responseHandler(
+//         res,
+//         404,
+//         null,
+//         "Order Not Found",
+//         false
+//       );
+//     }
+
+//     // Calculate total affiliate commission
+//     // let affiliateCommission = 0;
+
+//     // for (const item of order.products) {
+//     //   const product = await productModel.findOne({
+//     //     productId: item.id,
+//     //   });
+
+//     //   if (!product) {
+//     //     return res.status(404).json({
+//     //       success: false,
+//     //       message: `Product not found: ${item.id}`,
+//     //     });
+//     //   }
+
+//     //   const commission = product.affiliateCommission || 0;
+//     //   const qty = item.qty || 1;
+
+//     //   affiliateCommission += commission * qty;
+//     // }
+
+
+//     const user = await userModel.findOne({
+//       userName: order.affiliate_ref
+//     });
+
+//     if (!user) {
+//       return responseHandler(
+//         res,
+//         404,
+//         null,
+//         "User Not Found",
+//         false
+//       );
+//     }
+
+//     // Add affiliateCommission in order
+//     // order.affiliateCommission = affiliateCommission;
+//     // await order.save();
+
+//     let { affiliateCommission } = order;
+
+//     // Commission ko existing balance mein ADD karo
+//     user.balance += affiliateCommission;
+//     await user.save();
+
+//     const notice = await notificationModel.create({
+//       user: user._id,
+//       title: "Payment Released",
+//       message: `Your affiliate commission of ${affiliateCommission} has been released.`,
+//       orderId: order.order.id,
+//     });
+
+//     return responseHandler(
+//       res,
+//       200,
+//       {
+//         balance: user.balance,
+//         order,
+//         notification: notice
+//       },
+//       "Affiliate Commission Released Successfully",
+//       true
+//     );
+
+//   } catch (error) {
+//     console.error(
+//       "Release Affiliate Commission Error:",
+//       error.message
+//     );
+
+//     return responseHandler(
+//       res,
+//       500,
+//       null,
+//       "Internal Server Error Affiliate Commission Release",
+//       false
+//     );
+//   }
+// };
 
 
 export const deleteOrder = async (req, res) => {

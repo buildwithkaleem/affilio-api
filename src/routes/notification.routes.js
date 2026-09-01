@@ -1,11 +1,12 @@
 import express from "express";
+
 import {
   getNotifications,
   markAsRead,
-  // markAllAsRead,
   getUnreadCount,
-  // getSingleNotification
+  getSingleNotification,
 } from "../controllers/notification.controller.js";
+
 import { auth } from "../middleware/authMiddleware.js";
 
 const notificationRouter = express.Router();
@@ -13,17 +14,25 @@ const notificationRouter = express.Router();
 // 🔔 GET ALL
 notificationRouter.get("/", auth, getNotifications);
 
-// ✅ MARK ONE
-notificationRouter.post("/read/:id", auth, markAsRead);
-
 // 🔢 UNREAD COUNT
-notificationRouter.get("/unreadCount", auth, getUnreadCount);
+notificationRouter.get(
+  "/unreadCount",
+  auth,
+  getUnreadCount
+);
 
+// GET SINGLE
+notificationRouter.get(
+  "/:id",
+  auth,
+  getSingleNotification
+);
 
-// // GET SINGAL
-// router.get("/:id", auth, getSingleNotification);
-
-// // ✅ MARK ALL
-// router.put("/read-all", auth, markAllAsRead);
+// ✅ MARK ONE AS READ
+notificationRouter.post(
+  "/read/:id",
+  auth,
+  markAsRead
+);
 
 export default notificationRouter;

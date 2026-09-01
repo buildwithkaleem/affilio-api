@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
 const orderSchema = new mongoose.Schema(
   {
@@ -67,8 +67,16 @@ const orderSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+
     affiliateCommission: Number,
+
+    commissionReleased: {
+      type: Boolean,
+      default: false,
+    },
+    
   },
+  
   {
     timestamps: true,
   }

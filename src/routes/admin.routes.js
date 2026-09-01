@@ -19,6 +19,12 @@ adminRouter.post('/addAffilliateProducts',
   auth,
   adminController.addAffilliateProducts);
 
+adminRouter.get(
+  "/getAllAffiliateProducts",
+  auth,
+  adminController.getAllAffiliateProducts
+);
+
 // Order
 adminRouter.get('/getAllOrders',
   auth,
