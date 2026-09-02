@@ -205,8 +205,8 @@ export const generateTokens = async (req, res) => {
       accessToken, user: {
         id: user._id,
         userName: user.userName,
-        email: user.email
-
+        email: user.email,
+        role: user.role,
       }
     }, 
     "Token refreshed successfully", true,
