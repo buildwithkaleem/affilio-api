@@ -9,6 +9,7 @@ import adminRouter from "./routes/admin.routes.js";
 import userRouter from "./routes/user.routes.js";
 import notificationRouter from "./routes/notification.routes.js";
 import orderRouter from "./routes/order.routes.js";
+import contactRouter from "./routes/contact.route.js";
 
 const app = express();
 
@@ -38,6 +39,8 @@ app.use('/user/api/v1', userRouter);
 app.use('/admin/api/v1', adminRouter);
 app.use("/api/v1/notification", notificationRouter);
 app.use("/api/v1/order", orderRouter);
+app.use("/api/v1/contact", contactRouter);
+app.use("/admin/api/v1", contactRouter);
 
 app.get('/',(req,res)=>{
   res.send("hello Affilio")
