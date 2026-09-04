@@ -352,7 +352,7 @@ export const addAffilliateProducts = async (req, res) => {
     const regularPrice = data.product.price?.regular;
     const productImage = data.product?.image;
 
-    const price = salePrice || regularPrice;
+    const price = salePrice ?? regularPrice;
 
     let commission = price * persent / 100;
     const affiliateCommission = Math.floor(commission);
