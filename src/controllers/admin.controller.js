@@ -345,14 +345,14 @@ export const addAffilliateProducts = async (req, res) => {
         { timeout: 20000, }
       );
 
-    const productTitle = data.product.title;
-    const productId = data.product.id;
-    const productSlug = data.product.slug;
-    const salePrice = data.product.price.sale;
-    const regularPrice = data.product.price.regular;
-    const productImage = data.product.image;
+    const productTitle = data.product?.title;
+    const productId = data.product?.id;
+    const productSlug = data.product?.slug;
+    const salePrice = data.product?.price.sale;
+    const regularPrice = data.product.price?.regular;
+    const productImage = data.product?.image;
 
-    const price = salePrice ?? regularPrice;
+    const price = salePrice || regularPrice;
 
     let commission = price * persent / 100;
     const affiliateCommission = Math.floor(commission);
