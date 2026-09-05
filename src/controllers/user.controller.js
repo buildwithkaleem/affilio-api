@@ -58,11 +58,14 @@ export const userUpdate = async (req, res) => {
       return responseHandler(res, 404, {}, "User Not Found", false);
     }
 
-    const isMatch = await argon2.verify(user.password, oldPassword);
+    if (oldPassword !== undefined){
+      const isMatch = await argon2.verify(user.password, oldPassword);
+      
+      if (!isMatch) {
+        return responseHandler(res, 401, null, "your OldPassword is inCorect", false)
+      };
+    }
 
-    if (!isMatch) {
-      return responseHandler(res, 401, null, "your OldPassword is inCorect", false)
-    };
 
     // const hashedPassword = await argon2.hash(newPassword);
 
