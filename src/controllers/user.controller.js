@@ -58,22 +58,50 @@ export const userUpdate = async (req, res) => {
       return responseHandler(res, 404, {}, "User Not Found", false);
     }
 
-    if (oldPassword !== undefined){
-      const isMatch = await argon2.verify(user.password, oldPassword);
-      
-      if (!isMatch) {
-        return responseHandler(res, 401, null, "your OldPassword is inCorect", false)
-      };
-    }
+    // if (oldPassword !== undefined){
+    //   const isMatch = await argon2.verify(user.password, oldPassword);
+
+    //   if (!isMatch) {
+    //     return responseHandler(res, 401, null, "your OldPassword is inCorect", false)
+    //   };
+    // }
 
 
     // const hashedPassword = await argon2.hash(newPassword);
 
     if (userName !== undefined) user.userName = userName;
 
-    if (newPassword !== undefined) user.password = newPassword;
-
     if (email !== undefined) user.email = email;
+
+    if (newPassword !== undefined) {
+      if (oldPassword === undefined) {
+        return responseHandler(
+          res,
+          400,
+          {},
+          "Old password is required",
+          false
+        );
+      }
+
+      const isMatch = await argon2.verify(
+        user.password,
+        oldPassword
+      );
+
+      if (!isMatch) {
+        return responseHandler(
+          res,
+          401,
+          {},
+          "Your old password is incorrect",
+          false
+        );
+      }
+
+      user.password = newPassword;
+    }
+
 
     const save = await user.save();
 
