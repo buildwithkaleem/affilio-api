@@ -85,10 +85,21 @@ export const updateUser = async (req, res) => {
     }
 
 
-    if (userName) user.userName = userName;
-    if (email) user.email = email;
-    if (newPassword) user.password = newPassword;
-    if (role) user.role = role;
+    if (userName !== undefined) {
+      user.userName = userName;
+    }
+
+    if (email !== undefined) {
+      user.email = email;
+    }
+
+    if (newPassword !== undefined && newPassword !== "") {
+      user.password = newPassword;
+    }
+
+    if (role !== undefined) {
+      user.role = role;
+    }
 
     await user.save();
 
@@ -294,7 +305,7 @@ export const withdrawalApproval = async (req, res) => {
 
 // add affilliate products
 
-export const addAffilliateProducts = async (req, res) => {
+export const addAffiliateProducts = async (req, res) => {
   try {
     let { productUrl, persent } = req.body;
 
@@ -413,6 +424,60 @@ export const addAffilliateProducts = async (req, res) => {
       500,
       {},
       "Internal server error",
+      false
+    );
+  }
+};
+
+// ==============================
+// Delete AFFILIATE PRODUCTS
+// ==============================
+
+export const deleteAffiliateProduct = async (req, res) => {
+  try {
+    const { id: productId } = req.params;
+
+    // 🔐 Admin check
+    if (req.user?.role !== "admin") {
+      return responseHandler(
+        res,
+        403,
+        {},
+        "Access denied",
+        false
+      );
+    }
+
+    const product =
+      await productModel.findByIdAndDelete(
+        productId
+      );
+
+    if (!product) {
+      return responseHandler(
+        res,
+        404,
+        {},
+        "Affiliate product not found",
+        false
+      );
+    }
+
+    return responseHandler(
+      res,
+      200,
+      {
+        productId,
+      },
+      "Affiliate product deleted successfully",
+      true
+    );
+  } catch (error) {
+    return responseHandler(
+      res,
+      500,
+      {},
+      `Internal Server Error Affiliate Product Delete: ${error.message}`,
       false
     );
   }
@@ -596,6 +661,7 @@ export const releaseAffiliateCommission = async (req, res) => {
     // ==============================
 
     order.commissionReleased = true;
+    order.order.status = "Dispatched"
 
     await order.save();
 
@@ -641,6 +707,57 @@ export const releaseAffiliateCommission = async (req, res) => {
       500,
       null,
       "Internal Server Error Affiliate Commission Release",
+      false
+    );
+  }
+};
+
+
+export const deleteOrder = async (req, res) => {
+  try {
+    const { id: orderId } = req.params;
+
+    // 🔐 Admin check
+    if (req.user?.role !== "admin") {
+      return responseHandler(
+        res,
+        403,
+        {},
+        "Access denied",
+        false
+      );
+    }
+
+    // 🗑️ Delete order
+    const order =
+      await orderModel.findByIdAndDelete(orderId);
+
+    // Order not found
+    if (!order) {
+      return responseHandler(
+        res,
+        404,
+        {},
+        "Order not found",
+        false
+      );
+    }
+
+    return responseHandler(
+      res,
+      200,
+      {
+        orderId: order._id,
+      },
+      "Order deleted successfully"
+    );
+
+  } catch (error) {
+    return responseHandler(
+      res,
+      500,
+      null,
+      `Internal Server Error Order Delete: ${error.message}`,
       false
     );
   }
@@ -755,31 +872,31 @@ export const releaseAffiliateCommission = async (req, res) => {
 // };
 
 
-export const deleteOrder = async (req, res) => {
-  try {
+// export const deleteOrder = async (req, res) => {
+//   try {
 
-    const productId = req.params?.id;
+//     const productId = req.params?.id;
 
-    // 🔐 Admin check
-    if (req.user?.role !== "admin") {
-      return responseHandler(res, 403, {}, "Access denied", false);
-    }
+//     // 🔐 Admin check
+//     if (req.user?.role !== "admin") {
+//       return responseHandler(res, 403, {}, "Access denied", false);
+//     }
 
-    const order = await orderModel.findByIdAndDelete(productId);
+//     const order = await orderModel.findByIdAndDelete(productId);
 
-    return responseHandler(
-      res,
-      200,
-      {
-        orderId: productId,
-      },
-      "Order deleted successfully"
-    );
+//     return responseHandler(
+//       res,
+//       200,
+//       {
+//         orderId: productId,
+//       },
+//       "Order deleted successfully"
+//     );
 
-  } catch (error) {
-    return responseHandler(res, 500, null, "Internal Server Error Order Delete" + error.message, false);
-  }
-}
+//   } catch (error) {
+//     return responseHandler(res, 500, null, "Internal Server Error Order Delete" + error.message, false);
+//   }
+// }
 
 
 // export const releaseAffiliateCommission = async (req,res) => {

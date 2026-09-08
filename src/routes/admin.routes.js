@@ -15,9 +15,15 @@ adminRouter.post('/withdrawalApproval/:id',
   auth,
   adminController.withdrawalApproval);
 
-adminRouter.post('/addAffilliateProducts',
+adminRouter.post('/addAffiliateProducts',
   auth,
-  adminController.addAffilliateProducts);
+  adminController.addAffiliateProducts);
+
+adminRouter.delete(
+  "/deleteAffiliateProduct/:id",
+  auth,
+  adminController.deleteAffiliateProduct
+);
 
 adminRouter.get(
   "/getAllAffiliateProducts",
