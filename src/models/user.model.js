@@ -41,6 +41,11 @@ const userSchema = new mongoose.Schema(
     //   type: Boolean,
     //   default: false,
     // },
+    affiliate_ref: {
+      type: String,
+      required: true,
+      index: true,
+    },
 
     isActive: {
       type: Boolean,

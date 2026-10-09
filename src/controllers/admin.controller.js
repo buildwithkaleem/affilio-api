@@ -616,7 +616,7 @@ export const releaseAffiliateCommission = async (req, res) => {
     // ==============================
 
     const user = await userModel.findOne({
-      userName: order.affiliate_ref,
+      affiliate_ref: order.affiliate_ref,
     });
 
     if (!user) {

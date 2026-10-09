@@ -36,10 +36,14 @@ export const register = async (req, res) => {
 
     // const hashedPassword = await argon2.hash(password);
 
+    let affiliate_ref = userName.toLowerCase()
+      .replace(/\s+/g, "-")
+
     const user = await userModel.create({
       userName: userName.trim(),
       email: email.trim().toLowerCase(),
       password,
+      affiliate_ref,
     });
 
 
@@ -86,7 +90,7 @@ export const login = async (req, res) => {
       });
     }
 
-    const accessToken = generateAccessToken(user._id, user.role);
+    const accessToken = generateAccessToken(user._id, user.role,);
     const refreshToken = generateRefreshToken(user._id, user.role);
 
     const hashedRefreshToken = await argon2.hash(refreshToken);
@@ -292,9 +296,16 @@ export const resetPassword = async (req, res) => {
     const { token } = req.params;
     const { newPassword } = req.body;
 
+    console.log("TOKEN:", token);
+    console.log("BODY:", req.body);
+
     const decoded = verifyResetPasswordToken(token);
 
+    console.log("DECODED:", decoded);
+
     const user = await userModel.findById(decoded.id);
+
+    console.log("USER:", user?._id);
 
     if (!user) {
       return responseHandler(res, 404, {}, "User not found", false);
@@ -307,6 +318,8 @@ export const resetPassword = async (req, res) => {
 
     return responseHandler(res, 200, null, "Password reset successful");
   } catch (error) {
+
+    console.error("RESET PASSWORD ERROR:", error);
     return responseHandler(res, 400, error.message, "Invalid or expired token", false);
   }
 };

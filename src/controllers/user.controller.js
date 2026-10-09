@@ -74,33 +74,33 @@ export const userUpdate = async (req, res) => {
     if (email !== undefined) user.email = email;
 
     if (newPassword !== undefined) {
-      if (oldPassword === undefined) {
-        return responseHandler(
-          res,
-          400,
-          {},
-          "Old password is required",
-          false
-        );
-      }
+  if (oldPassword === undefined) {
+    return responseHandler(
+      res,
+      400,
+      {},
+      "Old password is required",
+      false
+    );
+  }
 
-      const isMatch = await argon2.verify(
-        user.password,
-        oldPassword
-      );
+  const isMatch = await argon2.verify(
+    user.password,
+    oldPassword
+  );
 
-      if (!isMatch) {
-        return responseHandler(
-          res,
-          401,
-          {},
-          "Your old password is incorrect",
-          false
-        );
-      }
+  if (!isMatch) {
+    return responseHandler(
+      res,
+      401,
+      {},
+      "Your old password is incorrect",
+      false
+    );
+  }
 
-      user.password = newPassword;
-    }
+  user.password = newPassword;
+}
 
 
     const save = await user.save();
@@ -156,7 +156,7 @@ export const getDashboard = async (req, res) => {
     // Affiliate orders
     const orders = await orderModel
       .find({
-        affiliate_ref: user.userName,
+        affiliate_ref: user.affiliate_ref,
       })
       .sort({ createdAt: -1 })
       .lean();
@@ -678,7 +678,7 @@ export const getAllProducts = async (req, res) => {
 
     const productsWithAffiliateUrl = products.map((product) => ({
       ...product,
-      affiliateUrl: `${product.productUrl}?ref=${encodeURIComponent(user.userName)}`,
+      affiliateUrl: `${product.productUrl}?ref=${encodeURIComponent(user.affiliate_ref)}`,
     }));
 
     return responseHandler(
@@ -713,7 +713,7 @@ export const getOrders = async (req, res) => {
 
     const orders = await orderModel.find(
       {
-        affiliate_ref: user.userName
+        affiliate_ref: user.affiliate_ref
       }
     )
       .select("-affiliate_ref -customer")
@@ -758,7 +758,7 @@ export const getOrderById = async (req, res) => {
     const order = await orderModel
       .findOne({
         _id: orderId,
-        affiliate_ref: user.userName,
+        affiliate_ref: user.affiliate_ref,
       })
       .select("-affiliate_ref -customer")
       .lean();
