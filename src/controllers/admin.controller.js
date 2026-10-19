@@ -5,7 +5,7 @@ import { paymentMethodModel } from "../models/paymentMethod.model.js"
 import { withdrawalApprovedTemplate, withdrawalRejectedTemplate } from "../utils/htmlTemlate.js";
 import { sendEmail } from "../services/sendEmail.service.js"
 import { notificationModel } from "../models/notification.model.js";
-import axios from "axios";
+// import axios from "axios";
 import { productModel } from "../models/product.model.js";
 import { orderModel } from "../models/order.model.js";
 
@@ -305,129 +305,129 @@ export const withdrawalApproval = async (req, res) => {
 
 // add affilliate products
 
-export const addAffiliateProducts = async (req, res) => {
-  try {
-    let { productUrl, persent } = req.body;
+// export const addAffiliateProducts = async (req, res) => {
+//   try {
+//     let { productUrl, persent } = req.body;
 
-    persent = Number(persent)
+//     persent = Number(persent)
 
-    // 🔐 Admin check
-    if (req.user?.role !== "admin") {
-      return responseHandler(
-        res,
-        403,
-        {},
-        "Access denied",
-        false
-      );
-    }
+//     // 🔐 Admin check
+//     if (req.user?.role !== "admin") {
+//       return responseHandler(
+//         res,
+//         403,
+//         {},
+//         "Access denied",
+//         false
+//       );
+//     }
 
-    // Validation
-    if (!productUrl) {
-      return responseHandler(
-        res,
-        400,
-        {},
-        "Product URL is required",
-        false
-      );
-    }
+//     // Validation
+//     if (!productUrl) {
+//       return responseHandler(
+//         res,
+//         400,
+//         {},
+//         "Product URL is required",
+//         false
+//       );
+//     }
 
-    if (persent === undefined || persent === null) {
-      return responseHandler(
-        res,
-        400,
-        {},
-        "Affiliate percentage is required",
-        false
-      );
-    }
+//     if (persent === undefined || persent === null) {
+//       return responseHandler(
+//         res,
+//         400,
+//         {},
+//         "Affiliate percentage is required",
+//         false
+//       );
+//     }
 
-    const slug = new URL(productUrl)
-      .pathname
-      .split("/")
-      .filter(Boolean)
-      .pop();
+//     const slug = new URL(productUrl)
+//       .pathname
+//       .split("/")
+//       .filter(Boolean)
+//       .pop();
 
 
-    // Fetch product from Pure API
-    const { data } = await axios
-      .get(`${process.env.PURE_API_URL}/${slug}`,
-        { timeout: 20000, }
-      );
+//     // Fetch product from Pure API
+//     const { data } = await axios
+//       .get(`${process.env.PURE_API_URL}/${slug}`,
+//         { timeout: 20000, }
+//       );
 
-    const productTitle = data.product?.title;
-    const productId = data.product?.id;
-    const productSlug = data.product?.slug;
-    const salePrice = data.product?.price.sale;
-    const regularPrice = data.product.price?.regular;
-    const productImage = data.product?.image;
+//     const productTitle = data.product?.title;
+//     const productId = data.product?.id;
+//     const productSlug = data.product?.slug;
+//     const salePrice = data.product?.price.sale;
+//     const regularPrice = data.product.price?.regular;
+//     const productImage = data.product?.image;
 
-    const price = salePrice || regularPrice;
+//     const price = salePrice || regularPrice;
 
-    let commission = price * persent / 100;
-    const affiliateCommission = Math.floor(commission);
+//     let commission = price * persent / 100;
+//     const affiliateCommission = Math.floor(commission);
 
-    const isExist = await productModel.findOne({ productId });
+//     const isExist = await productModel.findOne({ productId });
 
-    if (isExist) {
-      return responseHandler(res, 409, { productId }, "Product Already Exist")
-    }
+//     if (isExist) {
+//       return responseHandler(res, 409, { productId }, "Product Already Exist")
+//     }
 
-    const product = await productModel.create({
-      productUrl,
-      productId,
-      productTitle,
-      productSlug,
-      regularPrice,
-      salePrice,
-      productImage,
-      persent,
-      affiliateCommission
-    });
+//     const product = await productModel.create({
+//       productUrl,
+//       productId,
+//       productTitle,
+//       productSlug,
+//       regularPrice,
+//       salePrice,
+//       productImage,
+//       persent,
+//       affiliateCommission
+//     });
 
-    return responseHandler(
-      res,
-      200,
-      {
-        product,
-      },
-      "Product fetched successfully",
-      true
-    );
+//     return responseHandler(
+//       res,
+//       200,
+//       {
+//         product,
+//       },
+//       "Product fetched successfully",
+//       true
+//     );
 
-  } catch (error) {
-    console.error("Add Affiliate Product Error:", error.message);
+//   } catch (error) {
+//     console.error("Add Affiliate Product Error:", error.message);
 
-    // if (error.code === "ECONNABORTED") {
-    //   return responseHandler(
-    //     res,
-    //     504,
-    //     {},
-    //     "Product API request timed out",
-    //     false
-    //   );
-    // }
+//     // if (error.code === "ECONNABORTED") {
+//     //   return responseHandler(
+//     //     res,
+//     //     504,
+//     //     {},
+//     //     "Product API request timed out",
+//     //     false
+//     //   );
+//     // }
 
-    if (error.response) {
-      return responseHandler(
-        res,
-        error.response.status,
-        {},
-        "Product API returned an error",
-        false
-      );
-    }
+//     if (error.response) {
+//       return responseHandler(
+//         res,
+//         error.response.status,
+//         {},
+//         "Product API returned an error",
+//         false
+//       );
+//     }
 
-    return responseHandler(
-      res,
-      500,
-      {},
-      "Internal server error",
-      false
-    );
-  }
-};
+//     return responseHandler(
+//       res,
+//       500,
+//       {},
+//       "Internal server error",
+//       false
+//     );
+//   }
+// };
 
 // ==============================
 // Delete AFFILIATE PRODUCTS
