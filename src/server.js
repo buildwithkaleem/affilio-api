@@ -33,17 +33,19 @@ app.use(
 );
 
 app.use(
-  helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
-        objectSrc: ["'none'"],
-        baseUri: ["'self'"],
-        frameAncestors: ["'none'"],
-      },
-    },
-  })
+  helmet(
+  //   {
+  //   contentSecurityPolicy: {
+  //     directives: {
+  //       defaultSrc: ["'self'"],
+  //       scriptSrc: ["'self'"],
+  //       objectSrc: ["'none'"],
+  //       baseUri: ["'self'"],
+  //       frameAncestors: ["'none'"],
+  //     },
+  //   },
+  // }
+)
 );
 
 app.use(express.json());
