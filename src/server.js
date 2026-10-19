@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 dotenv.config();
 import express from "express";
 import cors from 'cors';
+import helmet from "helmet";
 import dbConnection from "./config/db.js";
 import cookieParser from "cookie-parser";
 import authRouter from "./routes/auth.routes.js";
@@ -30,6 +31,21 @@ app.use(
     credentials: true,
   })
 );
+
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        frameAncestors: ["'none'"],
+      },
+    },
+  })
+);
+
 app.use(express.json());
 app.use(cookieParser());
 

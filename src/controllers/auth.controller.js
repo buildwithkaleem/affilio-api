@@ -102,7 +102,9 @@ export const login = async (req, res) => {
     const options = {
       httpOnly: true,
       secure: isProduction, // dev me false & pro me true
-      sameSite: isProduction ? "none" : "lax",  // best for dev $
+      // sameSite: isProduction ? "none" : "lax",  // best for dev $
+      sameSite: "lax",  // best for dev $
+      domain: ".egrif.online",
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 day
     };
 
@@ -200,22 +202,24 @@ export const generateTokens = async (req, res) => {
     //   httpOnly: true,
     //   secure: isProduction, // dev me false & pro me true
     //   sameSite: isProduction ? "none" : "lax",  // best for dev $
+    // sameSite: "lax",  // best for dev $
+    //   domain: ".egrif.online",
     //   maxAge: 7 * 24 * 60 * 60 * 1000 // 7 day
     // };
 
     // console.log("SETTING NEW COOKIE");
 
     return responseHandler(res, 200, {
-      accessToken, user: {
-        id: user._id,
-        userName: user.userName,
-        email: user.email,
-        role: user.role,
-      }
-    }, 
-    "Token refreshed successfully", true,
-    //  [{ name: "refreshToken", value: NewRefreshToken, options }]
-  );
+        accessToken, user: {
+          id: user._id,
+          userName: user.userName,
+          email: user.email,
+          role: user.role,
+        }
+      },
+        "Token refreshed successfully", true,
+        //  [{ name: "refreshToken", value: NewRefreshToken, options }]
+      );
 
 
   } catch (error) {
@@ -343,7 +347,7 @@ export const resetPassword = async (req, res) => {
 //       return responseHandler(res,401,null, "your OldPassword is inCorect",false)
 //     };
 
-//     const hashedPassword = await argon2.hash(newPassword);  
+//     const hashedPassword = await argon2.hash(newPassword);
 
 //     if (userName !== undefined) user.userName = userName;
 
