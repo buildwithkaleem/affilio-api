@@ -429,6 +429,225 @@ export const withdrawalApproval = async (req, res) => {
 //   }
 // };
 
+
+export const addAffiliateProducts = async (req, res) => {
+  try {
+    let { productUrl, persent } = req.body;
+
+    // Admin check
+    if (req.user?.role !== "admin") {
+      return responseHandler(
+        res,
+        403,
+        {},
+        "Access denied",
+        false
+      );
+    }
+
+    // Validate product URL
+    if (!productUrl) {
+      return responseHandler(
+        res,
+        400,
+        {},
+        "Product URL is required",
+        false
+      );
+    }
+
+    let productURL;
+
+    try {
+      productURL = new URL(productUrl);
+
+      if (!["http:", "https:"].includes(productURL.protocol)) {
+        throw new Error("Invalid protocol");
+      }
+    } catch {
+      return responseHandler(
+        res,
+        400,
+        {},
+        "Valid product URL is required",
+        false
+      );
+    }
+
+    // Validate affiliate percentage
+    persent = Number(persent);
+
+    if (
+      !Number.isFinite(persent) ||
+      persent <= 0 ||
+      persent > 100
+    ) {
+      return responseHandler(
+        res,
+        400,
+        {},
+        "Affiliate percentage must be between 1 and 100",
+        false
+      );
+    }
+
+    const slug = productURL.pathname
+      .split("/")
+      .filter(Boolean)
+      .pop();
+
+    if (!slug) {
+      return responseHandler(
+        res,
+        400,
+        {},
+        "Product slug not found",
+        false
+      );
+    }
+
+    // Check API configuration
+    if (!process.env.PURE_API_URL) {
+      console.error("PURE_API_URL is missing");
+
+      return responseHandler(
+        res,
+        500,
+        {},
+        "Product API is not configured",
+        false
+      );
+    }
+
+    // Fetch product using built-in fetch
+    const apiUrl =
+      `${ process.env.PURE_API_URL.replace(/\/+$/, "") }/${encodeURIComponent(slug)}`;
+
+const apiResponse = await fetch(apiUrl, {
+  signal: AbortSignal.timeout(20000),
+});
+
+if (!apiResponse.ok) {
+  console.error(
+    "PURE API error:",
+    apiResponse.status
+  );
+
+  return responseHandler(
+    res,
+    apiResponse.status,
+    {},
+    "Product API returned an error",
+    false
+  );
+}
+
+const data = await apiResponse.json();
+const fetchedProduct = data.product;
+
+if (
+  !fetchedProduct ||
+  fetchedProduct.id == null ||
+  !fetchedProduct.title
+) {
+  return responseHandler(
+    res,
+    502,
+    {},
+    "Invalid product data received from API",
+    false
+  );
+}
+
+const {
+  title: productTitle,
+  id: productId,
+  slug: productSlug,
+  image: productImage,
+} = fetchedProduct;
+
+const salePrice = Number(fetchedProduct.price?.sale) || 0;
+const regularPrice =
+  Number(fetchedProduct.price?.regular) || 0;
+
+const price = salePrice > 0 ? salePrice : regularPrice;
+
+if (!Number.isFinite(price) || price <= 0) {
+  return responseHandler(
+    res,
+    502,
+    {},
+    "Invalid product price received from API",
+    false
+  );
+}
+
+const affiliateCommission = Math.floor(
+  (price * persent) / 100
+);
+
+// Check duplicate product
+const isExist = await productModel.findOne({
+  productId,
+});
+
+if (isExist) {
+  return responseHandler(
+    res,
+    409,
+    { productId },
+    "Product Already Exist",
+    false
+  );
+}
+
+// Save product
+const product = await productModel.create({
+  productUrl,
+  productId,
+  productTitle,
+  productSlug,
+  regularPrice,
+  salePrice,
+  productImage,
+  persent,
+  affiliateCommission,
+});
+
+return responseHandler(
+  res,
+  201,
+  { product },
+  "Product fetched successfully",
+  true
+);
+  } catch (error) {
+  console.error(
+    "Add Affiliate Product Error:",
+    error.message
+  );
+
+  if (error.name === "TimeoutError") {
+    return responseHandler(
+      res,
+      504,
+      {},
+      "Product API request timed out",
+      false
+    );
+  }
+
+  return responseHandler(
+    res,
+    500,
+    {},
+    "Internal server error",
+    false
+  );
+}
+};
+
+
 // ==============================
 // Delete AFFILIATE PRODUCTS
 // ==============================
